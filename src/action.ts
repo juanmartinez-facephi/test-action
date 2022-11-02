@@ -1,3 +1,4 @@
+import { exec } from "@actions/exec";
 import { readFileSync } from "fs"
 import { CoverageMap, CoverageMapData, createCoverageMap, FileCoverage, CoverageSummary, createCoverageSummary } from "istanbul-lib-coverage"
 import { ActionConfig } from "./config"
@@ -86,9 +87,8 @@ export class CovSum {
 }
 
 export async function run(config: ActionConfig): Promise<CovSum> {
-
   console.log(`exec ${config.jestCMD}`);
-  //await exec(config.jestCMD, [], {silent: true, cwd: config.workdir});
+  await exec(config.jestCMD, [], {silent: true, cwd: config.workdir});
 
   const covSum: CovSum = new CovSum(config);
 
