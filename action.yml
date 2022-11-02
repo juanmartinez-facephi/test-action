@@ -1,0 +1,26 @@
+name: "Jest Coverage"
+description: "The action comments annotations on your pull request and comment the jest coverage results"
+branding:
+  icon: 'activity'
+  color: 'gray-dark'
+inputs:
+  workdir:
+    description: "Subdirectory to run tests in"
+    required: false
+    default: ""
+  output-filename:
+    description: "custom jest coverage output filename"
+    required: false
+    default: "jest.output.coverage.json"
+  jest-custom-flags:
+    description: "custom jest flags"
+    required: false
+    default: "--forceExit --testLocationInResults"
+  github-token:
+    description: "Github token"
+    required: true
+    default: ""
+
+runs:
+  using: "node12"
+  main: "dist/index.js"
