@@ -100,9 +100,9 @@ async function main() {
       if (baseActionConfig == null) return;
 
       baseBranchSummary = await run(baseActionConfig);
+      
+      await exec(`git checkout -`);
     }
-
-    await exec(`git checkout -`);
 
     const actionTemplate = new ActionTemplate(currentActionConfig);
     const markdownTemplate = actionTemplate.populate(currentBranchSummary, baseBranchSummary);
