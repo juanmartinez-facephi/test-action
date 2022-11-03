@@ -2,6 +2,7 @@ import { exec } from "@actions/exec";
 import { readFileSync } from "fs"
 import { CoverageMap, CoverageMapData, createCoverageMap, FileCoverage, CoverageSummary, createCoverageSummary } from "istanbul-lib-coverage"
 import { ActionConfig } from "./config"
+import path from "path";
 
 export type JsonReport = {
   numFailedTestSuites: number;
@@ -77,12 +78,16 @@ export class CovSum {
     this.documentSummary = {};
   }
 
-  addCoverageSumary(coverageFile: string, coverageSummary: CoverageSummary) {
+  addCoverageSumary(absoluteFilePath: string, coverageSummary: CoverageSummary) {
+    const filePath = absoluteFilePath.replace('/home/runner/work/test/', '');
+    const fileDir = path.dirname(filePath);
+
+    if (!this.documentSummary[fileDir])
+      this.documentSummary[fileDir] = createCoverageSummary();
+
+    this.documentSummary[filePath] = coverageSummary;
+    this.documentSummary[fileDir].merge(coverageSummary);
     this.fileSummary.merge(coverageSummary);
-    if (this.documentSummary[coverageFile])
-      this.documentSummary[coverageFile].merge(coverageSummary);
-    else
-      this.documentSummary[coverageFile] = coverageSummary;
   }
 }
 
