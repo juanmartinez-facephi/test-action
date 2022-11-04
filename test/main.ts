@@ -34,7 +34,10 @@ async function main() {
     const isPullRequest: boolean = !!pullId;
     const isCoveragePass = currentBranchSummary.fileCoverageJSON.success;
 
-    const baseActionConfig: ActionConfig | null = await getConfig(actionConfig);
+    const baseActionConfig: ActionConfig | null = await getConfig({
+      ...actionConfig,
+      jestOutputFilename: 'jest.output.coverage.2.json',
+    });
     if (baseActionConfig == null) return;
 
     baseActionConfig.jestCMD = "echo hello world!";

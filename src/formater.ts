@@ -14,18 +14,18 @@ enum Color {
     LIGHTGREEN = '#a6ba12',
     ORANGE =    '#FF6600',
     RED =       '#CC0000',
-    YELLOW =    '#ffcc00',
+    YELLOW =    '#e0c307',
 }
 
 enum Icon {
-    PTG = '\\\\%', // On local test '\\%'
+    PTG = '\\\\%'
 }
 
 
 class Decorator {
 
     public static textColor(text: string, color: Color): string {
-        return text ? `$\\small\\textcolor{${color}}{\\textbf{\\textsf{${text}}}}$` : '';
+        return text ? `$\\small\\textcolor{${color}}{\\textbf{\\textsf{${text}}}}$ ` : '';
     }
 
     public static ptgFormat(value: number): string {
@@ -97,7 +97,7 @@ export class ActionTemplate {
 
     private _tableCelFormat(newValue: number, oldValue?: number): string {
         const value = Decorator.ptgFormat(newValue);
-        const inc = Decorator.incFormat(oldValue ? oldValue - newValue : undefined);
+        const inc = Decorator.incFormat(oldValue ? newValue - oldValue  : undefined);
         return `<nobr>${value} ${inc}</nobr>`
     }
 
@@ -131,8 +131,9 @@ export class ActionTemplate {
                         const fileExt = path.extname(filename);
                         return func(
                             fileExt ? 
-                                Decorator.textColor('↳  ' + fileTag + filename.replace(path.dirname(filename), ''), Color.GREY) :
-                                Decorator.textColor(fileTag + filename, Color.NONE),
+                                Decorator.textColor('↳ ', Color.GREY) + fileTag +
+                                    Decorator.textColor(filename.replace(path.dirname(filename), ''), Color.GREY) :
+                                fileTag + Decorator.textColor(filename, Color.NONE),
                             newCoverage.toJSON(), 
                             oldCoverageData);
                     })
@@ -193,20 +194,15 @@ export class ActionTemplate {
     private _addTestSummary(newCovSum: CovSum) {
         const data: JsonReport = newCovSum.fileCoverageJSON;
 
-        this.template = this.template.replace('{{tests.status}}',
-            data.success ?
-                Decorator.textColor('PASS', Color.GREEN) :
-                Decorator.textColor('FAIL', Color.RED));
-
         let testSummary = '';
         (data.testResults || []).forEach((test: TestResult) => {
             let status = '';
             if (test.status == 'passed')
-                status = `${Decorator.textColor(`●`, Color.GREEN)} ${Decorator.textColor(test.name, Color.GREY)}`;
+                status = `${Decorator.textColor(`● PASS: `, Color.GREEN)} ${Decorator.textColor(test.name, Color.GREY)}`;
             else if (test.status == 'failed')
-                status = Decorator.textColor(`⬤ ${test.name}`, Color.RED);
+                status = Decorator.textColor(`⬤ FAIL: ${test.name}`, Color.RED);
             else 
-                status = Decorator.textColor(`⬤ ${test.status}:  ${test.name}`, Color.YELLOW);
+                status = Decorator.textColor(`⬤ FAIL: ${test.status}:  ${test.name}`, Color.YELLOW);
 
             testSummary +=  `\n\n> ${status}`;
         });

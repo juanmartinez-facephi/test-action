@@ -1,5 +1,5 @@
 
-### **COVERAGE TEST SUMMARY \[{{tests.status}}\]**
+### **COVERAGE TEST SUMMARY**
 ---
 
 {{summary.table}}
