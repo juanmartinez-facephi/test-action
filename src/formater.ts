@@ -43,10 +43,10 @@ export class Decorator {
         return this.textColor(stringValue, Color.YELLOW);
       case value >= 50:
         return this.textColor(stringValue, Color.ORANGE);
-      case value > 0:
-        return this.textColor(stringValue, Color.RED);
-      default:
+      case isNaN(value):
         return this.textColor('-', Color.GREY);
+      default:
+        return this.textColor(stringValue, Color.RED);
     }
   }
 
