@@ -22,7 +22,7 @@ async function main() {
     console.group('CURRENT BRANCH');
     const currentBranchSummary: CovSum = await run(actionConfig);
     if (!currentBranchSummary.fileCoverageJSON.success)
-      actionConfig.addError('Current Test Failed Status.');
+      actionConfig.addError('Current Test Failed.');
     console.groupEnd()
 
     actionConfig.hasPassCoverageAction = 
