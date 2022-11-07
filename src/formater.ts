@@ -222,9 +222,9 @@ export class ActionTemplate {
     );
 
     this.template = this.template.replace('{{summary.message}}',
-      errors ? 
+      errors.length ? 
         errors.map((e) => Decorator.textColor(`ERROR: ${e}`, Color.ORANGE)).join(', ') : 
-        Decorator.textColor(`All Test Passed`, Color.LIGHTGREEN)
+        'All Test Passed'
     );
 
     this.template = this.template.replace('{{summary.suites}}', [

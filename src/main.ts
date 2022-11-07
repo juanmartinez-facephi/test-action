@@ -13,6 +13,9 @@ import {
 
 async function main() {
   try {
+    await exec(`npm install`);
+    await exec(`npm install -g jest`);
+
     console.log('get Action Config');
     const actionConfig: ActionConfig = new ActionConfig();
 
