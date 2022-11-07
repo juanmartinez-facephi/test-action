@@ -1,6 +1,5 @@
 
 ### **COVERAGE TEST SUMMARY**
----
 
 {{summary.table}}
 
