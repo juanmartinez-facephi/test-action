@@ -87,8 +87,7 @@ export class CovSum {
     this.coverage = 0;
   }
 
-  addCoverageSumary(absoluteFilePath: string, coverageSummary: CoverageSummary) {
-    const filePath = absoluteFilePath.replace('/home/runner/work/test/', '');
+  addCoverageSumary(filePath: string, coverageSummary: CoverageSummary) {
     const fileDir = path.dirname(filePath);
 
     if (!this.directorySummary[fileDir])
@@ -113,10 +112,12 @@ export async function run(config: ActionConfig): Promise<CovSum> {
 
   const covSum: CovSum = new CovSum(config);
 
-  covSum.fileCoverage.files().forEach(function (filename: any) {
-    const fileCoverage: FileCoverage = covSum.fileCoverage.fileCoverageFor(filename);
+  covSum.fileCoverage.files().forEach(function (absoluteFilePath: any) {
+    const fileCoverage: FileCoverage = covSum.fileCoverage.fileCoverageFor(absoluteFilePath);
     const coverageSummary: CoverageSummary = fileCoverage.toSummary();
-    covSum.addCoverageSumary(filename, coverageSummary)
+
+    const filePath = absoluteFilePath.replace(config.workdir, '');
+    covSum.addCoverageSumary(filePath, coverageSummary)
   });
 
   covSum.coverage = 100 * 
