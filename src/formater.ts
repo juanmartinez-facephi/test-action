@@ -177,7 +177,7 @@ export class ActionTemplate {
 
             detailsTable.push(Object.values(this._columns)
               .map((func) =>  func(
-                getFlag(oldDirSummaryData) + filename, 
+                getFlag(oldDirSummaryData) + fileDir, 
                 newDirSummary.summary.toJSON(), 
                 oldDirSummaryData)
               ));
