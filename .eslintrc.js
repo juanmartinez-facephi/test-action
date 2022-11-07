@@ -1,40 +1,26 @@
 module.exports = {
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    project: 'tsconfig.json',
+    tsconfigRootDir : __dirname, 
+    sourceType: 'module',
+  },
+  plugins: ['@typescript-eslint/eslint-plugin'],
+  extends: [
+    'plugin:@typescript-eslint/recommended',
+    'plugin:prettier/recommended',
+  ],
   root: true,
   env: {
     node: true,
-    es6: true,
-    jest: true
+    jest: true,
   },
-  parser: '@typescript-eslint/parser',
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module'
+  ignorePatterns: ['.eslintrc.js'],
+  rules: {
+    "@typescript-eslint/semi": [2, "always"],
+    '@typescript-eslint/interface-name-prefix': 'off',
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
   },
-  extends: ['eslint:recommended', 'plugin:prettier/recommended'],
-  overrides: [
-    {
-      files: ['**/*.ts'],
-      extends: [
-        'eslint:recommended',
-        'plugin:@typescript-eslint/eslint-recommended',
-        'plugin:@typescript-eslint/recommended',
-        'prettier/@typescript-eslint',
-        'plugin:jest/recommended'
-      ],
-      plugins: ['@typescript-eslint', 'jest'],
-      rules: {
-        '@typescript-eslint/explicit-function-return-type': [
-          'warn',
-          {
-            allowExpressions: true
-          }
-        ],
-        '@typescript-eslint/no-unused-vars': 'warn',
-        '@typescript-eslint/no-use-before-define': 'off',
-        'no-console': 'error',
-        // nededed for mixins to avoid unecessary warnings
-        '@typescript-eslint/no-empty-interface': 'off'
-      }
-    }
-  ]
-}
+};

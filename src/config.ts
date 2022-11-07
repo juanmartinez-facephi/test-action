@@ -1,43 +1,82 @@
 import { join, resolve, sep } from "path"
-import { readFileSync } from "fs";
-
-
-export class ConfigParams {
-  public workdir?: string;
-  public templateFilePath?: string;
-  public jestOutputFilename!: string;
-  public jestFlags!: string;
-}
+import * as core from "@actions/core";
+import { getBaseBranch, getPullRequestId } from "./github.utils";
 
 export class ActionConfig {
-  public workdir!: string;
-  public templateFilePath?: string;
-  public jestOutputFilePath!: string;
-  public jestCMD!: string;
-}
+  public githubToken: string;
+  public isPullRequest: boolean;
+  public hasPassCoverageAction: boolean;
+  public jestCommand: string;
+  public jestOutputFilePath: string;
+  public pullRequestId: number;
+  public pullRequestBase: string;
+  public tableDisplayMode: string;
+  public tableStyleDisabled: boolean;
+  public templateFilePath: string;
+  public thresholdBetweenBranch: number;
+  public workdir: string;
 
-export async function getConfig({ 
-  workdir,
-  templateFilePath,
-  jestOutputFilename,
-  jestFlags,
-}: ConfigParams): Promise<ActionConfig | null> {
+  public errors: string[] = [];
 
-  const config = new ActionConfig();
-  
-  config.workdir = (workdir ? resolve(workdir) : process.cwd()) + sep;
+  constructor() {
+    const customGithubToken = 
+      core.getInput("github-token", {required: true});
 
-  config.templateFilePath = templateFilePath;
+    const customWorkdir = 
+      core.getInput("workdir");
 
-  config.jestOutputFilePath = join(config.workdir, jestOutputFilename);
-  config.jestCMD = `jest ${jestFlags} --coverage --json --outputFile=${jestOutputFilename}`;
+    const customJestCommand = 
+      core.getInput("jest-command");
 
-  const TOKEN = process.env.GITHUB_TOKEN;
-  // if (TOKEN === undefined) {
-  //   core.error("GITHUB_TOKEN not set.");
-  //   core.setFailed("GITHUB_TOKEN not set.");
-  //   return null;
-  // }
+    const customJestConfigFilename = 
+      core.getInput("jest-config-filename");
 
-  return config;
+    const customJestFlags =
+      core.getInput("jest-flags") ||  
+      '--forceExit --testLocationInResults';
+
+    const customJestOutputFileName = 
+      core.getInput("jest-output-filename") || 
+      'jest.output.coverage.json';
+
+    const customTableStyleDisabled = 
+      core.getInput("table-style-disabled") === 'true';
+
+    const customTableDisplayMode = 
+      core.getInput("table-display-mode") || 'ALL';
+
+    const customThresholdBetweenBranch = 
+      core.getInput("threshold-between-branch") ||
+      '-100';
+
+    
+    this.workdir = customWorkdir ? 
+      `${resolve(customWorkdir)}${sep}` : 
+      `${process.cwd()}`;
+
+    this.jestOutputFilePath = join(this.workdir, customJestOutputFileName);
+    
+    this.jestCommand = customJestCommand || 
+      (`jest ${customJestFlags} --coverage --json --outputFile=${this.jestOutputFilePath}` + 
+        (customJestConfigFilename ? 
+          ` --config ${join(this.workdir, customJestConfigFilename)}` : 
+          ''));
+
+    this.tableDisplayMode = customTableDisplayMode.toUpperCase();
+
+    this.githubToken = customGithubToken;
+    this.tableStyleDisabled = customTableStyleDisabled;
+    this.templateFilePath = '../template.md';
+    this.thresholdBetweenBranch = Number(customThresholdBetweenBranch);
+
+    this.pullRequestId = getPullRequestId();
+    this.pullRequestBase = getBaseBranch();
+    this.isPullRequest = !!this.pullRequestId;
+    this.hasPassCoverageAction = false;
+  }
+
+  public addError(error: string) {
+    this.hasPassCoverageAction = false;
+    this.errors.push(error);
+  }
 }

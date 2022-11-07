@@ -64,9 +64,16 @@ export type AssertionResult = {
 };
 
 export class CovSum {
+  public coverage: number;
   public fileSummary: CoverageSummary;
   public fileCoverage: CoverageMap;
   public fileCoverageJSON: JsonReport;
+  public directorySummary: {
+    [file: string]: {
+      summary: CoverageSummary,
+      printed: boolean
+    }
+  };
   public documentSummary: {
     [file: string]: CoverageSummary
   };
@@ -75,25 +82,34 @@ export class CovSum {
     this.fileCoverageJSON = JSON.parse(readFileSync(config.jestOutputFilePath, "utf-8"));
     this.fileCoverage = createCoverageMap((this.fileCoverageJSON.coverageMap as unknown) as CoverageMapData);
     this.fileSummary = createCoverageSummary();
+    this.directorySummary = {};
     this.documentSummary = {};
+    this.coverage = 0;
   }
 
   addCoverageSumary(absoluteFilePath: string, coverageSummary: CoverageSummary) {
     const filePath = absoluteFilePath.replace('/home/runner/work/test/', '');
     const fileDir = path.dirname(filePath);
 
-    if (!this.documentSummary[fileDir])
-      this.documentSummary[fileDir] = createCoverageSummary();
+    if (!this.directorySummary[fileDir])
+      this.directorySummary[fileDir] = {
+        summary: createCoverageSummary(),
+        printed: false,
+      };
 
     this.documentSummary[filePath] = coverageSummary;
-    this.documentSummary[fileDir].merge(coverageSummary);
+    this.directorySummary[fileDir].summary.merge(coverageSummary);
     this.fileSummary.merge(coverageSummary);
   }
 }
 
 export async function run(config: ActionConfig): Promise<CovSum> {
-  console.log(`exec ${config.jestCMD}`);
-  await exec(config.jestCMD, [], {silent: true, cwd: config.workdir});
+  try {
+    console.log(config.jestCommand);
+    await exec(config.jestCommand, [], {silent: true, cwd: config.workdir});
+  } catch (error) {
+    // exit(1) when executing failed tests throws an exception 
+  }
 
   const covSum: CovSum = new CovSum(config);
 
@@ -102,6 +118,10 @@ export async function run(config: ActionConfig): Promise<CovSum> {
     const coverageSummary: CoverageSummary = fileCoverage.toSummary();
     covSum.addCoverageSumary(filename, coverageSummary)
   });
+
+  covSum.coverage = 100 * 
+    covSum.fileSummary.statements.covered / 
+    covSum.fileSummary.statements.total;
 
   return covSum;
 }

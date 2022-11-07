@@ -1,127 +1,85 @@
-
-import * as core from "@actions/core"
+import { setFailed } from "@actions/core";
 import { exec } from "@actions/exec";
-import {context, GitHub} from "@actions/github"
-import type {Octokit} from "@octokit/rest"
+import { GitHub } from "@actions/github"
 
-import { writeFileSync } from "fs";
-import filter from "lodash/filter"
-import flatMap from "lodash/flatMap"
-import map from "lodash/map"
-import path from "path";
-import strip from "strip-ansi"
-
-import { ActionConfig, ConfigParams, getConfig } from "./config";
+import { ActionConfig } from "./config";
 import { CovSum, run } from "./action";
-import { ActionTemplate } from "./formater";
-
-const BASE_BRANCH = '';
-const JEST_CURR_OUTPUT_FILENAME = 'jest.output.coverage.json';
-const JEST_FLAG = '--forceExit --testLocationInResults';
-
-const TEMPLATE_FILENAME = '../template.md';
-
-function getCommentPayload(pullId: number, markdownTemplate: string): Octokit.IssuesCreateCommentParams {
-  return {
-    ...context.repo,
-    body: markdownTemplate,
-    issue_number: pullId,
-  };
-}
-
-function getCheckPayload(coverageSummary: CovSum, cwd: string, markdownTemplate: string): Octokit.ChecksCreateParams {
-  const isCoveragePass = coverageSummary.fileCoverageJSON.success;
-
-  const outputTest = isCoveragePass ? 
-    undefined : 
-    `\`\`\`\n${filter(map(coverageSummary.fileCoverageJSON.testResults, 
-      (r) => strip(r.message))).join("\n").trimRight()}\n\`\`\``;
-  
-  const annotations: Octokit.ChecksCreateParamsOutputAnnotations[] =  isCoveragePass ? 
-    [] : 
-    flatMap(coverageSummary.fileCoverageJSON.testResults, (result) => {
-      return filter(result.assertionResults, ["status", "failed"]).map((assertion) => ({
-        path: result.name.replace(cwd, ""),
-        start_line: assertion.location?.line ?? 0,
-        end_line: assertion.location?.line ?? 0,
-        annotation_level: "failure",
-        title: (assertion.ancestorTitles || []).concat(assertion.title).join(" > "),
-        message: strip(assertion.failureMessages?.join("\n\n") ?? ""),
-      }))
-    })
-
-  return {
-    ...context.repo,
-    head_sha: context.payload.pull_request?.head.sha ?? context.sha,
-    status: "completed",
-    name: isCoveragePass ? 'Jest Code Coverage' : 'Jest Test Error',
-    conclusion: isCoveragePass ? 'success' : 'failure',
-    output: {
-      title: isCoveragePass ? 'Jest Test Success' : 'Jest Test Failure',
-      text: outputTest,
-      summary: markdownTemplate,
-      annotations: annotations,
-    },
-  }
-}
+import { ActionTemplate, Color, Decorator } from "./formater";
+import { 
+  getCommentPayload,
+  getCheckPayload,
+  deletePreviousComments,
+} from "./github.utils";
 
 async function main() {
   try {
-    const actionConfig: ConfigParams = {
-      workdir: core.getInput("workdir", {required: false}),
-      templateFilePath: TEMPLATE_FILENAME,
-      jestOutputFilename: core.getInput("output-filename", {required: false}) || JEST_CURR_OUTPUT_FILENAME,
-      jestFlags: core.getInput("jest-custom-flags", {required: false}) ||  JEST_FLAG,
-    }
+    console.log('get Action Config');
+    const actionConfig: ActionConfig = new ActionConfig();
 
-    const token = core.getInput("github-token", {required: true});
-    if (token === undefined) {
-      core.error("GITHUB_TOKEN not set.");
-      core.setFailed("GITHUB_TOKEN not set.");
-      return;
-    }
+    console.group('CURRENT BRANCH');
+    const currentBranchSummary: CovSum = await run(actionConfig);
+    if (!currentBranchSummary.fileCoverageJSON.success)
+      actionConfig.addError('Current Test Failed Status.');
+    console.groupEnd()
 
-    const currentActionConfig: ActionConfig | null = await getConfig(actionConfig);
-    if (currentActionConfig == null) return;
+    actionConfig.hasPassCoverageAction = 
+      currentBranchSummary.fileCoverageJSON.success;
 
-    const currentBranchSummary: CovSum = await run(currentActionConfig);
     let baseBranchSummary: CovSum | undefined;
+    
+    if (actionConfig.isPullRequest) {
+      try {
+        console.log(`Checkout [${actionConfig.pullRequestBase}]`);
+        await exec(`git fetch --all --depth=1`);
+        await exec(`git checkout -f ${actionConfig.pullRequestBase}`);
+  
+        console.group('BASE BRANCH');
+        baseBranchSummary = await run(actionConfig);
+        console.groupEnd();
 
-    const pullId: number = context.payload.pull_request?.number ?? 0;
-    const isPullRequest: boolean = !!pullId;
-    const isCoveragePass = currentBranchSummary.fileCoverageJSON.success;
-
-    if (isPullRequest) {
-      await exec(`git fetch --all --depth=1`);
-      await exec(`git checkout -f ${BASE_BRANCH}`);
-
-      const baseActionConfig: ActionConfig | null = await getConfig(actionConfig);
-
-      if (baseActionConfig == null) return;
-
-      baseBranchSummary = await run(baseActionConfig);
-      
-      // await exec(`git checkout -`);
+        const coverageIncrement = currentBranchSummary.coverage - baseBranchSummary.coverage;
+        if (coverageIncrement < actionConfig.thresholdBetweenBranch) {
+          currentBranchSummary.fileCoverageJSON.success = false;
+          actionConfig.addError(`Current Coverage has Decreased by [${
+              coverageIncrement}\\\\%] When the Allowable Minimun Threshold is [${
+              actionConfig.thresholdBetweenBranch}\\\\%].`);
+        }
+      } catch (error) {
+        console.error(error);
+      }
     }
 
-    const actionTemplate = new ActionTemplate(currentActionConfig);
-    const markdownTemplate = actionTemplate.populate(currentBranchSummary, baseBranchSummary);
+    console.log('Crete report message');
+    const actionTemplate = new ActionTemplate(actionConfig);
+    const markdownTemplate = actionTemplate.populate(
+      currentBranchSummary, 
+      baseBranchSummary,
+      actionConfig.errors);
 
-    const octokit = new GitHub(token);
+    console.log('add Check with Coverage Report'); // for push action
+    const octokit = new GitHub(actionConfig.githubToken);
+    await octokit.checks.create(getCheckPayload(
+      currentBranchSummary, 
+      actionConfig.workdir, 
+      markdownTemplate
+    ));
 
-    await octokit.checks.create(getCheckPayload(currentBranchSummary, currentActionConfig.workdir, markdownTemplate));
-
-    if (isPullRequest) {
-      await octokit.issues.createComment(getCommentPayload(pullId, markdownTemplate))
+    console.log('add Comment with Coverage Report');
+    if (actionConfig.isPullRequest) {
+      await deletePreviousComments(octokit);
+      await octokit.issues.createComment(getCommentPayload(
+        actionConfig.pullRequestId, 
+        markdownTemplate
+      ));
     }
 
-    if (!isCoveragePass)
-      core.setFailed("Some jest tests failed.");
+    if (!actionConfig.hasPassCoverageAction) {
+      setFailed("Some jest tests failed.");
+    }
 
   } catch (error) {
     console.error(error)
-    core.setFailed('FAIL TEST')
-    if (error instanceof Error) core.setFailed(error.message);
+    setFailed('FAIL TEST')
   }
 }
 
