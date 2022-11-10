@@ -11,7 +11,7 @@ export class ActionConfig {
   public pullRequestId: number;
   public pullRequestBase: string;
   public tableDisplayMode: string;
-  public tableStyleDisabled: boolean;
+  public tableColorDisabled: boolean;
   public templateFilePath: string;
   public thresholdBetweenBranch: number;
   public workdir: string;
@@ -28,19 +28,18 @@ export class ActionConfig {
     const customJestCommand = 
       core.getInput("jest-command");
 
-    const customJestConfigFilename = 
-      core.getInput("jest-config-filename");
+    const customJestConfigPath = 
+      core.getInput("jest-config-path");
 
     const customJestFlags =
-      core.getInput("jest-flags") ||  
-      '--forceExit --testLocationInResults';
+      core.getInput("jest-flags");
 
-    const customJestOutputFileName = 
-      core.getInput("jest-output-filename") || 
+    const customJestOutputPath = 
+      core.getInput("jest-output-path") || 
       'jest.output.coverage.json';
 
-    const customTableStyleDisabled = 
-      core.getInput("table-style-disabled") === 'true';
+    const customTableColorDisabled = 
+      core.getInput("table-color-disabled") === 'true';
 
     const customTableDisplayMode = 
       core.getInput("table-display-mode") || 'ALL';
@@ -54,18 +53,18 @@ export class ActionConfig {
       `${resolve(customWorkdir)}${sep}` : 
       `${process.cwd()}`;
 
-    this.jestOutputFilePath = join(this.workdir, customJestOutputFileName);
+    this.jestOutputFilePath = join(this.workdir, customJestOutputPath);
     
     this.jestCommand = customJestCommand || 
-      (`jest ${customJestFlags} --coverage --json --outputFile=${this.jestOutputFilePath}` + 
-        (customJestConfigFilename ? 
-          ` --config ${join(this.workdir, customJestConfigFilename)}` : 
+      (`npx jest ${customJestFlags} --coverage --json --outputFile=${this.jestOutputFilePath}` + 
+        (customJestConfigPath ? 
+          ` --config ${join(this.workdir, customJestConfigPath)}` : 
           ''));
 
     this.tableDisplayMode = customTableDisplayMode.toUpperCase();
 
     this.githubToken = customGithubToken;
-    this.tableStyleDisabled = customTableStyleDisabled;
+    this.tableColorDisabled = customTableColorDisabled;
     this.templateFilePath = '../template.md';
     this.thresholdBetweenBranch = Number(customThresholdBetweenBranch);
 

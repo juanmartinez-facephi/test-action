@@ -1,23 +1,23 @@
 import { setFailed } from "@actions/core";
 import { exec } from "@actions/exec";
-import { GitHub } from "@actions/github"
 
 import { ActionConfig } from "./config";
 import { CovSum, run } from "./action";
-import { ActionTemplate, Color, Decorator } from "./formater";
+import { ActionTemplate} from "./formater";
 import { 
   getCommentPayload,
   getCheckPayload,
   deletePreviousComments,
+  getGithub,
 } from "./github.utils";
 
 async function main() {
   try {
-    await exec(`npm install`);
-    await exec(`npm install -g jest`);
-
+    
     console.log('get Action Config');
     const actionConfig: ActionConfig = new ActionConfig();
+    
+    await exec(`npm install`, undefined, { silent: true, cwd: actionConfig.workdir });
 
     console.group('CURRENT BRANCH');
     const currentBranchSummary: CovSum = await run(actionConfig);
@@ -33,8 +33,8 @@ async function main() {
     if (actionConfig.isPullRequest) {
       try {
         console.log(`Checkout [${actionConfig.pullRequestBase}]`);
-        await exec(`git fetch --all --depth=1`);
-        await exec(`git checkout -f ${actionConfig.pullRequestBase}`);
+        await exec(`git fetch --all --depth=1`, undefined, { silent: true });
+        await exec(`git checkout -f ${actionConfig.pullRequestBase}`, undefined, { silent: true });
   
         console.group('BASE BRANCH');
         baseBranchSummary = await run(actionConfig);
@@ -60,7 +60,7 @@ async function main() {
       actionConfig.errors);
 
     console.log('add Check with Coverage Report'); // for push action
-    const octokit = new GitHub(actionConfig.githubToken);
+    const octokit = getGithub(actionConfig);
     await octokit.checks.create(getCheckPayload(
       currentBranchSummary, 
       actionConfig.workdir, 

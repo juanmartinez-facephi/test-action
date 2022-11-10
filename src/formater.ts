@@ -95,25 +95,25 @@ export class ActionTemplate {
         this._tableCelFormat(
           100 * c1.statements.covered / c1.statements.total,
           c2 && (100 * c2.statements.covered / c2.statements.total),
-          config.tableStyleDisabled),
+          config.tableColorDisabled),
       'Stmts': (f, c1, c2) => `${c1.statements.covered}/${c1.statements.total}`,
       '% Branch': (f, c1, c2) =>
         this._tableCelFormat(
           100 * c1.branches.covered / c1.branches.total,
           c2 && (100 * c2.branches.covered / c2.branches.total),
-          config.tableStyleDisabled),
+          true),
       'Branch': (f, c1, c2) => `${c1.branches.covered}/${c1.branches.total}`,
       '% Funcs': (f, c1, c2) =>
         this._tableCelFormat(
           100 * c1.functions.covered / c1.functions.total,
           c2 && (100 * c2.functions.covered / c2.functions.total),
-          config.tableStyleDisabled),
+          true),
       'Funcs': (f, c1, c2) => `${c1.functions.covered}/${c1.functions.total}`,
       '% Lines': (f, c1, c2) =>
         this._tableCelFormat(
           100 * c1.lines.covered / c1.lines.total,
           c2 && (100 * c2.lines.covered / c2.lines.total),
-          config.tableStyleDisabled),
+          true),
       'Lines': (f, c1, c2) => `${c1.lines.covered}/${c1.lines.total}`,
     };
 

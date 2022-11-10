@@ -1,4 +1,4 @@
-import { context } from "@actions/github"
+import { context, GitHub } from "@actions/github"
 import { Octokit } from "@octokit/rest"
 import filter from "lodash/filter"
 import flatMap from "lodash/flatMap";
@@ -6,6 +6,11 @@ import map from "lodash/map";
 import strip from "strip-ansi";
 
 import { CovSum } from "./action";
+import { ActionConfig } from "./config";
+
+export const getGithub = (actionConfig: ActionConfig): GitHub => {
+  return new GitHub(actionConfig.githubToken);
+}
 
 export const getPullRequestId = (): number => {
   return context.payload.pull_request?.number ?? 0;
