@@ -22,6 +22,17 @@ enum Icon {
   PtgDefault = '%',
 }
 
+export enum SummaryTableMode {
+  ALL = 'ALL',
+  SIMPLE = 'SIMPLE',
+  STATEMENTS = 'STATEMENT',
+}
+
+const HtmlShortcut = {
+  collapse: (title: string, content:string) => 
+    `\n\n<details><summary class="link">${title}</summary>\n\n### **${title}**\n\n${content}\n\n</details>`
+}
+
 
 export class Decorator {
 
@@ -72,48 +83,50 @@ export class Decorator {
   }
 };
 
-export enum SummaryTableMode {
-  ALL = 'ALL',
-  SIMPLE = 'SIMPLE',
-  STATEMENTS = 'STATEMENT',
-}
 
 export class ActionTemplate {
-  public template: string;
+  private _comment: string = '';
+  private _fullTest: string = '';
+  private _fullCoverage: string = '';
+
+  private readonly _tableColorDisabled: boolean;
+
   private readonly _columns: {
-    [field: string]: (f:string, c1: CoverageSummaryData, c2?: CoverageSummaryData) => string
+    [field: string]: (f:string, c1: CoverageSummaryData, c2?: CoverageSummaryData, b?: boolean) => string
   };
 
   constructor(config: ActionConfig) {
-    this.template = config.templateFilePath ?
+    this._comment = config.templateFilePath ?
       readFileSync(path.resolve(__dirname, config.templateFilePath), "utf-8").toString() :
       '';
 
+    this._tableColorDisabled = config.tableColorDisabled;
+
     this._columns = {
       'File': (f, c1, c2) => f,
-      '% Stmts': (f, c1, c2) =>
+      '% Stmts': (f, c1, c2, b) =>
         this._tableCelFormat(
           100 * c1.statements.covered / c1.statements.total,
           c2 && (100 * c2.statements.covered / c2.statements.total),
-          config.tableColorDisabled),
+          b),
       'Stmts': (f, c1, c2) => `${c1.statements.covered}/${c1.statements.total}`,
-      '% Branch': (f, c1, c2) =>
+      '% Branch': (f, c1, c2, b) =>
         this._tableCelFormat(
           100 * c1.branches.covered / c1.branches.total,
           c2 && (100 * c2.branches.covered / c2.branches.total),
-          true),
+          false),
       'Branch': (f, c1, c2) => `${c1.branches.covered}/${c1.branches.total}`,
-      '% Funcs': (f, c1, c2) =>
+      '% Funcs': (f, c1, c2, b) =>
         this._tableCelFormat(
           100 * c1.functions.covered / c1.functions.total,
           c2 && (100 * c2.functions.covered / c2.functions.total),
-          true),
+          false),
       'Funcs': (f, c1, c2) => `${c1.functions.covered}/${c1.functions.total}`,
-      '% Lines': (f, c1, c2) =>
+      '% Lines': (f, c1, c2, b) =>
         this._tableCelFormat(
           100 * c1.lines.covered / c1.lines.total,
           c2 && (100 * c2.lines.covered / c2.lines.total),
-          true),
+          false),
       'Lines': (f, c1, c2) => `${c1.lines.covered}/${c1.lines.total}`,
     };
 
@@ -179,7 +192,8 @@ export class ActionTemplate {
               .map((func) =>  func(
                 getFlag(oldDirSummaryData) + fileDir, 
                 newDirSummary.summary.toJSON(), 
-                oldDirSummaryData)
+                oldDirSummaryData,
+                this._tableColorDisabled)
               ));
           }
 
@@ -189,7 +203,19 @@ export class ActionTemplate {
                   Decorator.textColor('↳ ', Color.GREY) + getFlag(oldFileCoverageData) +
                   Decorator.textColor(filename.replace(path.dirname(filename), ''), Color.GREY),
                 newCoverage.toJSON(),
-                oldFileCoverageData);
+                oldFileCoverageData,
+                this._tableColorDisabled);
+            })
+          );
+
+          detailsTable.push(Object.values(this._columns)
+            .map((func) => {
+              return func(
+                  Decorator.textColor('↳ ', Color.GREY) + getFlag(oldFileCoverageData) +
+                  Decorator.textColor(filename.replace(path.dirname(filename), ''), Color.GREY),
+                newCoverage.toJSON(),
+                oldFileCoverageData,
+                this._tableColorDisabled);
             })
           );
         });
@@ -200,34 +226,34 @@ export class ActionTemplate {
           func(
             'All Files',
             newCovSum.fileSummary.toJSON(),
-            oldCovSum && oldCovSum.fileSummary.toJSON()
+            oldCovSum && oldCovSum.fileSummary.toJSON(),
           )
         ),
       );
     }
 
-    this.template = this.template.replace('{{summary.table}}', summaryTable ?
+    this._comment = this._comment.replace('{{summary.table}}', summaryTable ?
       table(summaryTable, { align: ["l", "r", "r", "r", "r", "r", "r", "r", "r"] }) : '');
-    this.template = this.template.replace('{{details.table}}', detailsTable ?
+    this._fullCoverage = HtmlShortcut.collapse('Full File Report', detailsTable ?
       table(detailsTable, { align: ["l", "r", "r", "r", "r", "r", "r", "r", "r"] }) : '');
   }
 
   private _addSummary(newCovSum: CovSum, errors: string[]) {
     const data: JsonReport = newCovSum.fileCoverageJSON;
     
-    this.template = this.template.replace('{{summary.status}}',
+    this._comment = this._comment.replace('{{summary.status}}',
       newCovSum.fileCoverageJSON.success && errors.length == 0 ?
         Decorator.textColor('PASS', Color.GREEN) :
         Decorator.textColor('FAIL', Color.RED),
     );
 
-    this.template = this.template.replace('{{summary.message}}',
+    this._comment = this._comment.replace('{{summary.message}}',
       errors.length ? 
         errors.map((e) => Decorator.textColor(`ERROR: ${e}`, Color.ORANGE)).join(', ') : 
         'All Test Passed'
     );
 
-    this.template = this.template.replace('{{summary.suites}}', [
+    this._comment = this._comment.replace('{{summary.suites}}', [
       Decorator.textColor(data.numPassedTestSuites ? `${data.numPassedTestSuites} passes` : '', Color.GREEN),
       Decorator.textColor(data.numPendingTestSuites ? `${data.numPendingTestSuites} pendings` : '', Color.YELLOW),
       Decorator.textColor(data.numFailedTestSuites ? `${data.numFailedTestSuites} fails` : '', Color.RED),
@@ -235,18 +261,18 @@ export class ActionTemplate {
       ,
     ].filter((el) => el).join(', '));
 
-    this.template = this.template.replace('{{summary.tests}}', [
+    this._comment = this._comment.replace('{{summary.tests}}', [
       Decorator.textColor(data.numPassedTests ? `${data.numPassedTests} passes` : '', Color.GREEN),
       Decorator.textColor(data.numPendingTests ? `${data.numPendingTests} pendings` : '', Color.YELLOW),
       Decorator.textColor(data.numFailedTests ? `${data.numFailedTests} fails` : '', Color.RED),
       Decorator.textColor(`${data.numTotalTests} total`, Color.NONE),
     ].filter((el) => el).join(', '));
 
-    this.template = this.template.replace('{{summary.snapshots}}', [
+    this._comment = this._comment.replace('{{summary.snapshots}}', [
       Decorator.textColor(`${data.snapshot.total} total`, Color.NONE),
     ].filter((el) => el).join(', '));
 
-    this.template = this.template.replace('{{summary.time}}', [
+    this._comment = this._comment.replace('{{summary.time}}', [
       Decorator.textColor(
         ((data.testResults || [])
           .map((el: TestResult) => el.endTime - el.startTime)
@@ -274,13 +300,32 @@ export class ActionTemplate {
       testSummary += `\n\n> ${status}`;
     });
 
-    this.template = this.template.replace('{{tests.review}}', testSummary);
+    this._fullTest = HtmlShortcut.collapse('All Test Status',  testSummary);
   }
 
-  public populate(newCovSum: CovSum, oldCovSum: CovSum | undefined, errors: string[] | undefined) {
+  public populate(newCovSum: CovSum, oldCovSum: CovSum | undefined, errors: string[] | undefined): {
+    reportMessage: string,
+    commentMessage: string
+  } {
     this._addSummary(newCovSum, errors || []);
     this._addTestSummary(newCovSum);
     this._addTables(newCovSum, oldCovSum);
-    return this.template;
+
+
+    let CommentWithTestLength = this._comment.length + this._fullTest.length;
+    let reportMessage: string = this._comment + this._fullTest + this._fullCoverage;
+    let commentMessage: string;
+
+    if (CommentWithTestLength > 65535) 
+      commentMessage = this._comment;
+    else if (CommentWithTestLength + this._fullCoverage.length > 65535) 
+      commentMessage = this._comment + this._fullTest
+    else 
+      commentMessage = reportMessage;
+
+    return {
+      reportMessage,
+      commentMessage,
+    };
   }
 }

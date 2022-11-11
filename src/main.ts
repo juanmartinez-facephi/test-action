@@ -64,7 +64,7 @@ async function main() {
     await octokit.checks.create(getCheckPayload(
       currentBranchSummary, 
       actionConfig.workdir, 
-      markdownTemplate
+      markdownTemplate.reportMessage
     ));
 
     console.log('add Comment with Coverage Report');
@@ -72,7 +72,7 @@ async function main() {
       await deletePreviousComments(octokit);
       await octokit.issues.createComment(getCommentPayload(
         actionConfig.pullRequestId, 
-        markdownTemplate
+        markdownTemplate.commentMessage
       ));
     }
 
