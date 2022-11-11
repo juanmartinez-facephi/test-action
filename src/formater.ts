@@ -115,19 +115,19 @@ export class ActionTemplate {
         this._tableCelFormat(
           100 * c1.branches.covered / c1.branches.total,
           c2 && (100 * c2.branches.covered / c2.branches.total),
-          false),
+          true),
       'Branch': (f, c1, c2) => `${c1.branches.covered}/${c1.branches.total}`,
       '% Funcs': (f, c1, c2, b) =>
         this._tableCelFormat(
           100 * c1.functions.covered / c1.functions.total,
           c2 && (100 * c2.functions.covered / c2.functions.total),
-          false),
+          true),
       'Funcs': (f, c1, c2) => `${c1.functions.covered}/${c1.functions.total}`,
       '% Lines': (f, c1, c2, b) =>
         this._tableCelFormat(
           100 * c1.lines.covered / c1.lines.total,
           c2 && (100 * c2.lines.covered / c2.lines.total),
-          false),
+          true),
       'Lines': (f, c1, c2) => `${c1.lines.covered}/${c1.lines.total}`,
     };
 
@@ -279,8 +279,8 @@ export class ActionTemplate {
       .reduce((a, b) => a + b);
   
     this._comment = this._comment.replace('{{summary.time}}', [
-        (time / (60 * 1000)).toFixed(0) + 'm',
-        ((time % (60 * 1000)) / 1000).toFixed(3) + 's',
+      Decorator.textColor((time / (60 * 1000)).toFixed(0) + 'm', Color.NONE),
+      Decorator.textColor(((time % (60 * 1000)) / 1000).toFixed(3) + 's', Color.NONE),
     ].filter((el) => el).join(' '));
   }
 
@@ -303,17 +303,30 @@ export class ActionTemplate {
     this._fullTest = HtmlShortcut.collapse('All Test Status',  testSummary);
   }
 
-  public populate(newCovSum: CovSum, oldCovSum: CovSum | undefined, errors: string[] | undefined): string {
+  public populate(newCovSum: CovSum, oldCovSum: CovSum | undefined, errors: string[] | undefined): {
+    reportMessage: string,
+    commentMessage: string
+  } {
     this._addSummary(newCovSum, errors || []);
     this._addTestSummary(newCovSum);
     this._addTables(newCovSum, oldCovSum);
 
+
     let CommentWithTestLength = this._comment.length + this._fullTest.length;
+    let commentMessage: string = this._comment + this._fullTest + this._fullCoverage;
+    let reportMessage: string;
+
+
     if (CommentWithTestLength > MAX_MESSAGE_LENGTH) 
-      return this._comment + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full test' and 'full report' info`;
+      reportMessage = this._comment + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full test' and 'full report' info`;
     else if (CommentWithTestLength + this._fullCoverage.length > MAX_MESSAGE_LENGTH) 
-      return this._comment + this._fullTest + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full test' and 'full report' info`;
+      reportMessage = this._comment + this._fullTest + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full test' and 'full report' info`;
     else 
-      return this._comment + this._fullTest + this._fullCoverage;
+      reportMessage = commentMessage;
+
+    return {
+      reportMessage,
+      commentMessage,
+    };
   }
 }
