@@ -37,8 +37,10 @@ const HtmlShortcut = {
 
 export class Decorator {
 
+  public static disabledColor: boolean = false;
+
   public static textColor(text: string, color: Color): string {
-    return text ? `$\\textcolor{${color}}{\\textbf{\\textsf{${text}}}}$ ` : '';
+    return text && !this.disabledColor ? `$\\textcolor{${color}}{\\textbf{\\textsf{${text}}}}$ ` : text || '';
   }
 
   public static ptgFormat(value: number, noFormat?: boolean): string {
@@ -90,8 +92,6 @@ export class ActionTemplate {
   private _fullTest: string = '';
   private _fullCoverage: string = '';
 
-  private readonly _tableColorDisabled: boolean;
-
   private readonly _columns: {
     [field: string]: (f:string, c1: CoverageSummaryData, c2?: CoverageSummaryData, b?: boolean) => string
   };
@@ -101,7 +101,7 @@ export class ActionTemplate {
       readFileSync(path.resolve(__dirname, config.templateFilePath), "utf-8").toString() :
       '';
 
-    this._tableColorDisabled = config.tableColorDisabled;
+    Decorator.disabledColor = config.tableColorDisabled;
 
     this._columns = {
       'File': (f, c1, c2) => f,
@@ -115,19 +115,19 @@ export class ActionTemplate {
         this._tableCelFormat(
           100 * c1.branches.covered / c1.branches.total,
           c2 && (100 * c2.branches.covered / c2.branches.total),
-          true),
+          b),
       'Branch': (f, c1, c2) => `${c1.branches.covered}/${c1.branches.total}`,
       '% Funcs': (f, c1, c2, b) =>
         this._tableCelFormat(
           100 * c1.functions.covered / c1.functions.total,
           c2 && (100 * c2.functions.covered / c2.functions.total),
-          true),
+          b),
       'Funcs': (f, c1, c2) => `${c1.functions.covered}/${c1.functions.total}`,
       '% Lines': (f, c1, c2, b) =>
         this._tableCelFormat(
           100 * c1.lines.covered / c1.lines.total,
           c2 && (100 * c2.lines.covered / c2.lines.total),
-          true),
+          b),
       'Lines': (f, c1, c2) => `${c1.lines.covered}/${c1.lines.total}`,
     };
 
@@ -169,7 +169,7 @@ export class ActionTemplate {
         () => undefined;
 
       const getFlag = oldCovSum ?
-        (file?: CoverageSummaryData) => file ? '' : Decorator.textColor(`NEW`, Color.RED) :
+        (file?: CoverageSummaryData) => file ? '' : `**NEW**` :
         () => '';
 
       Object.entries(newCovSum.documentSummary)
@@ -193,8 +193,7 @@ export class ActionTemplate {
               .map((func) =>  func(
                 getFlag(oldDirSummaryData) + fileDir, 
                 newDirSummary.summary.toJSON(), 
-                oldDirSummaryData,
-                this._tableColorDisabled)
+                oldDirSummaryData)
               ));
           }
 
@@ -205,20 +204,10 @@ export class ActionTemplate {
                   Decorator.textColor(filename.replace(path.dirname(filename), ''), Color.GREY),
                 newCoverage.toJSON(),
                 oldFileCoverageData,
-                this._tableColorDisabled);
+                true);
             })
           );
 
-          detailsTable.push(Object.values(this._columns)
-            .map((func) => {
-              return func(
-                  Decorator.textColor('↳ ', Color.GREY) + getFlag(oldFileCoverageData) +
-                  Decorator.textColor(filename.replace(path.dirname(filename), ''), Color.GREY),
-                newCoverage.toJSON(),
-                oldFileCoverageData,
-                this._tableColorDisabled);
-            })
-          );
         });
 
       summaryTable.push(
@@ -320,7 +309,7 @@ export class ActionTemplate {
     if (CommentWithTestLength > MAX_MESSAGE_LENGTH) 
       reportMessage = this._comment + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full test' and 'full report' info`;
     else if (CommentWithTestLength + this._fullCoverage.length > MAX_MESSAGE_LENGTH) 
-      reportMessage = this._comment + this._fullTest + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full test' and 'full report' info`;
+      reportMessage = this._comment + this._fullTest + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full report' info`;
     else 
       reportMessage = commentMessage;
 
