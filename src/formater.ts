@@ -272,16 +272,15 @@ export class ActionTemplate {
       Decorator.textColor(`${data.snapshot.total} total`, Color.NONE),
     ].filter((el) => el).join(', '));
 
+
+    const time = (data.testResults || [])
+      .map((el: TestResult) => el.endTime - el.startTime)
+      .reduce((a, b) => a + b);
+  
     this._comment = this._comment.replace('{{summary.time}}', [
-      Decorator.textColor(
-        ((data.testResults || [])
-          .map((el: TestResult) => el.endTime - el.startTime)
-          .reduce((a, b) => a + b) /
-          1000
-        ).toFixed(3) + 's',
-        Color.NONE
-      ),
-    ].filter((el) => el).join(', '));
+        (time / (60 * 1000)).toFixed(0) + 'm',
+        ((time % (60 * 1000)) / 1000).toFixed(3) + 's',
+    ].filter((el) => el).join(' '));
   }
 
   private _addTestSummary(newCovSum: CovSum) {
@@ -313,15 +312,15 @@ export class ActionTemplate {
 
 
     let CommentWithTestLength = this._comment.length + this._fullTest.length;
-    let reportMessage: string = this._comment + this._fullTest + this._fullCoverage;
-    let commentMessage: string;
+    let commentMessage: string = this._comment + this._fullTest + this._fullCoverage;
+    let reportMessage: string;
 
     if (CommentWithTestLength > 65535) 
-      commentMessage = this._comment;
+      reportMessage = this._comment;
     else if (CommentWithTestLength + this._fullCoverage.length > 65535) 
-      commentMessage = this._comment + this._fullTest
+      reportMessage = this._comment + this._fullTest
     else 
-      commentMessage = reportMessage;
+      reportMessage = commentMessage;
 
     return {
       reportMessage,
