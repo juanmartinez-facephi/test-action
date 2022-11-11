@@ -6,6 +6,8 @@ import path from "path";
 import { CovSum, JsonReport, TestResult } from "./action";
 import { ActionConfig } from "./config"
 
+const MAX_MESSAGE_LENGTH = 65435;
+
 export enum Color {
   NONE = 'default',
   BLUE = '#0F96CF',
@@ -32,7 +34,6 @@ const HtmlShortcut = {
   collapse: (title: string, content:string) => 
     `\n\n<details><summary class="link">${title}</summary>\n\n### **${title}**\n\n${content}\n\n</details>`
 }
-
 
 export class Decorator {
 
@@ -302,29 +303,17 @@ export class ActionTemplate {
     this._fullTest = HtmlShortcut.collapse('All Test Status',  testSummary);
   }
 
-  public populate(newCovSum: CovSum, oldCovSum: CovSum | undefined, errors: string[] | undefined): {
-    reportMessage: string,
-    commentMessage: string
-  } {
+  public populate(newCovSum: CovSum, oldCovSum: CovSum | undefined, errors: string[] | undefined): string {
     this._addSummary(newCovSum, errors || []);
     this._addTestSummary(newCovSum);
     this._addTables(newCovSum, oldCovSum);
 
-
     let CommentWithTestLength = this._comment.length + this._fullTest.length;
-    let commentMessage: string = this._comment + this._fullTest + this._fullCoverage;
-    let reportMessage: string;
-
-    if (CommentWithTestLength > 65535) 
-      reportMessage = this._comment;
-    else if (CommentWithTestLength + this._fullCoverage.length > 65535) 
-      reportMessage = this._comment + this._fullTest
+    if (CommentWithTestLength > MAX_MESSAGE_LENGTH) 
+      return this._comment + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full test' and 'full report' info`;
+    else if (CommentWithTestLength + this._fullCoverage.length > MAX_MESSAGE_LENGTH) 
+      return this._comment + this._fullTest + `\n\n> __Warning__\n>\n> Report is too long for github check, not showing 'full test' and 'full report' info`;
     else 
-      reportMessage = commentMessage;
-
-    return {
-      reportMessage,
-      commentMessage,
-    };
+      return this._comment + this._fullTest + this._fullCoverage;
   }
 }
